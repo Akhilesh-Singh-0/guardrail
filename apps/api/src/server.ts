@@ -1,14 +1,26 @@
 import express from "express"
 import { env } from "./config/env"
+import { connectRedis } from "./config/redis"
 
 const app = express()
 
 app.use(express.json())
 
-app.get("/health", (req, res) => {
+app.get("/health", async (req, res) => {
+  try {
     res.json({ status: "ok" })
+  } catch {
+    res.status(500).json({ status: "error" })
+  }
 })
 
-app.listen(env.PORT, () => {
+const startServer = async () => {
+  
+  await connectRedis()
+
+  app.listen(env.PORT, () => {
     console.log(`Server is running on port ${env.PORT}`)
-})
+  })
+}
+
+startServer()
