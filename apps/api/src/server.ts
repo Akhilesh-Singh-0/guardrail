@@ -1,7 +1,7 @@
 import express from "express"
+import { env } from "./config/env"
 
 const app = express()
-const PORT = 8000
 
 app.use(express.json())
 
@@ -9,6 +9,6 @@ app.get("/health", (req, res) => {
     res.json({ status: "ok" })
 })
 
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`)
+app.listen(env.PORT, () => {
+    console.log(`Server is running on port ${env.PORT}`)
 })
