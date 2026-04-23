@@ -1,159 +1,175 @@
-# Turborepo starter
+<div align="center">
 
-This Turborepo starter is maintained by the Turborepo core team.
+# Guardrail
 
-## Using this example
+### Control, track, and enforce AI API spending — before it gets out of hand.
 
-Run the following command:
+![Status](https://img.shields.io/badge/status-building%20in%20public-1D9E75?style=flat-square)
+![Stack](https://img.shields.io/badge/stack-Node.js%20%7C%20TypeScript%20%7C%20PostgreSQL-3C3489?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)
 
-```sh
-npx create-turbo@latest
+</div>
+
+---
+
+## The Problem
+
+AI apps don't fail with crashes — they fail with **unexpected costs**.
+
+One bug, one loop, or one power user:
+→ usage spikes
+→ costs explode
+→ no visibility into *who* or *why*
+
+Most systems only find out **after the bill arrives**.
+
+---
+
+## What Guardrail Does
+
+Guardrail sits between your app and OpenAI and enforces cost control in real time:
+
+- Tracks token usage and cost per request (per user, per model)
+- Enforces daily and monthly spending limits
+- Blocks requests **before** they hit OpenAI
+- Streams live usage via WebSockets
+- Detects anomalies against a rolling baseline
+- Triggers alerts at 80% and 100% thresholds
+
+---
+
+## Why It Exists
+
+Guardrail turns cost from:
+- unpredictable → predictable
+- invisible → observable
+- reactive → enforceable
+
+---
+
+## Monorepo Structure
+
+```
+guardrail/
+├── apps/
+│   ├── api/          ← Node.js + Express backend
+│   └── web/          ← Next.js dashboard (coming soon)
+├── docker-compose.yml
+└── turbo.json
 ```
 
-## What's inside?
+---
 
-This Turborepo includes the following packages/apps:
+## Architecture
 
-### Apps and Packages
-
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo build
+```
+┌─────────────────────────────────────────────────────────┐
+│                        Client                           │
+└────────────────────────┬────────────────────────────────┘
+                         │ HTTP / WebSocket
+┌────────────────────────▼────────────────────────────────┐
+│                    API Server                           │
+│                                                         │
+│  Proxy Layer        → intercepts every OpenAI call      │
+│  Billing Layer      → atomic Redis counters + limits    │
+│  Queue Layer        → BullMQ async usage processing     │
+│  Analytics Layer    → per-user spend queries            │
+└──────────┬──────────────────────┬───────────────────────┘
+           │                      │
+┌──────────▼──────┐    ┌──────────▼──────────────────────┐
+│   PostgreSQL    │    │         Redis                   │
+│                 │    │                                 │
+│  Users          │    │  Atomic spend counters          │
+│  UsageEvents    │    │  Pub/Sub (real-time events)     │
+│  UserLimits     │    │  BullMQ queues                  │
+│  Alerts         │    │  Idempotency keys               │
+└─────────────────┘    └─────────────────────────────────┘
+        ▲
+        │ JWT verification
+┌───────┴─────────┐
+│      Clerk      │
+│   (Auth + User  │
+│    webhook)     │
+└─────────────────┘
 ```
 
-Without global `turbo`, use your package manager:
+---
 
-```sh
-cd my-turborepo
-npx turbo build
-npm dlx turbo build
-npm exec turbo build
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Runtime | Node.js |
+| Language | TypeScript |
+| Framework | Express |
+| Database | PostgreSQL |
+| ORM | Prisma |
+| Auth | Clerk |
+| Cache / Counters | Redis |
+| Job Queue | BullMQ |
+| Real-time | WebSockets |
+| Monorepo | Turborepo |
+| Infra | Docker |
+| Validation | Zod |
+
+---
+
+## Getting Started
+
+### Prerequisites
+- Node.js 18+
+- Docker
+- Clerk account (free tier works)
+
+### Setup
+
+```bash
+git clone https://github.com/Akhilesh-Singh-0/guardrail.git
+cd guardrail
+npm install
+cp apps/api/.env.example apps/api/.env
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+Update `.env`:
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo build --filter=docs
+```
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/guardrail
+REDIS_URL=redis://localhost:6379
+CLERK_SECRET_KEY=...
+CLERK_PUBLISHABLE_KEY=...
+CLERK_WEBHOOK_SECRET=...
+OPENAI_API_KEY=sk-...
+PORT=8000
+NODE_ENV=development
 ```
 
-Without global `turbo`:
+Start services:
 
-```sh
-npx turbo build --filter=docs
-npm exec turbo build --filter=docs
-npm exec turbo build --filter=docs
+```bash
+docker-compose up -d
+cd apps/api
+npm run dev
 ```
 
-### Develop
+API: `http://localhost:8000`
+Health: `http://localhost:8000/health`
 
-To develop all apps and packages, run the following command:
+---
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+## Status
 
-```sh
-cd my-turborepo
-turbo dev
-```
+Day 2 of 8 — building in public.
 
-Without global `turbo`, use your package manager:
+Follow: [@singh_akhil2272](https://twitter.com/singh_akhil2272)
 
-```sh
-cd my-turborepo
-npx turbo dev
-npm exec turbo dev
-npm exec turbo dev
-```
+---
 
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+## License
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+MIT
 
-```sh
-turbo dev --filter=web
-```
+---
 
-Without global `turbo`:
-
-```sh
-npx turbo dev --filter=web
-npm exec turbo dev --filter=web
-npm exec turbo dev --filter=web
-```
-
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo login
-npm exec turbo login
-npm exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-npm exec turbo link
-npm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+<div align="center">
+  <sub>If you find this useful — a ⭐ helps a lot.</sub>
+</div>
