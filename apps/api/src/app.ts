@@ -2,6 +2,7 @@ import express from 'express'
 import { requestId } from './middleware/requestId'
 import { errorHandler } from './middleware/errorHandler'
 import authRouter from './modules/auth/auth.routes'
+import proxyRouter from './modules/proxy/proxy.routes'
 import { prisma } from './config/prisma'
 import { redis } from './config/redis'
 
@@ -10,6 +11,7 @@ const app = express()
 app.use(requestId)
 app.use('/auth', authRouter)
 app.use(express.json())
+app.use('/proxy', proxyRouter)
 
 app.get("/health", async (req, res) => {
     try {
