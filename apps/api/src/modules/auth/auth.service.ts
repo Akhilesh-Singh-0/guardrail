@@ -17,13 +17,22 @@ export const handleUserCreated = async (data: ClerkUserCreatedEvent) => {
           return
         }
 
-        await prisma.user.upsert({
-          where: { id },
-          update: { email },
-          create: { id, email }
-        })
+        await prisma.$transaction([
+
+            prisma.user.upsert({
+                where: { id },
+                update: { email },
+                create: { id, email }
+            }),
+      
+            prisma.userLimit.upsert({
+                where: {userId: id},
+                update: {},
+                create: {userId: id, dailyLimitUSD: 5.00, monthlyLimitUSD: 50.00}
+            })
+        ])
     
-        console.log('[Auth] User synced:', id)
+        console.log('[Auth] User synced with dailyLimit and monthlyLimit:', id)
     } catch (error) {
         console.error("Error handling user.created webhook:", error)
         throw error
