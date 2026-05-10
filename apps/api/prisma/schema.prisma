@@ -7,12 +7,21 @@ datasource db {
   provider = "postgresql"
 }
 
+enum AlertType {
+  DAILY_LIMIT_80
+  DAILY_LIMIT_100
+  MONTHLY_LIMIT_80
+  MONTHLY_LIMIT_100
+  ANOMALY
+}
+
 model User {
   id String @id 
   email String @unique
   createdAt DateTime @default(now())
   usageEvents UsageEvent[]
   userLimit UserLimit?
+  alerts Alert[]
 }
 
 model UsageEvent {
@@ -42,4 +51,19 @@ model UserLimit {
   updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id])
+}
+
+model Alert {
+  id          String      @id @default(cuid())
+  userId      String
+  type        AlertType
+  threshold   Decimal     @db.Decimal(5, 2)
+  triggered   Boolean     @default(false)
+  triggeredAt DateTime?
+  createdAt   DateTime    @default(now())
+  user        User        @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([type])
+  @@unique([userId, type])
 }
