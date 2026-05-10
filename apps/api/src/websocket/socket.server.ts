@@ -11,7 +11,7 @@ import {
   addConnection,
   AuthenticatedWebSocket,
   removeConnection
-} from '../websocket/socket.room'
+} from './socket.rooms'
 
 export let wss: WebSocketServer
 
