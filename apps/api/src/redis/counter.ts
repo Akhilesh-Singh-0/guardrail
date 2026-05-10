@@ -152,7 +152,7 @@ export const checkAndIncrementAtomic = async (
   }
 
   return {
-    allowed:          result[0] === 1,
+    allowed: result[0] === 1,
     currentDailySpend: fromMicro(result[1])
   }
 }
