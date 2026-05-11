@@ -1,21 +1,14 @@
 import IORedis from 'ioredis'
-
 import { env } from '../config/env'
-
 import { broadcastToUser } from '../websocket/socket.rooms'
 
-type UsageUpdateMessage = {
-  type: 'USAGE_UPDATE'
-  data: object
-}
-
-const createRedisClient = () =>
+const createClient = () =>
   new IORedis(env.REDIS_URL, {
     maxRetriesPerRequest: null
 })
 
-const publisher = createRedisClient()
-const subscriber = createRedisClient()
+const publisher = createClient()
+const subscriber = createClient()
 
 export const getUserChannel = (
   userId: string
@@ -23,20 +16,40 @@ export const getUserChannel = (
   return `usage:${userId}`
 }
 
-export const publishUsageUpdate = async (
+const publish = async (
+  userId: string,
+  type: string,
+  data: object
+): Promise<void> => {
+  await publisher.publish(
+    getUserChannel(userId),
+
+    JSON.stringify({
+      type,
+      data
+    })
+  )
+}
+
+export const publishUsageUpdate = (
   userId: string,
   data: object
 ): Promise<void> => {
-  const channel = getUserChannel(userId)
-
-  const message: UsageUpdateMessage = {
-    type: 'USAGE_UPDATE',
+  return publish(
+    userId,
+    'USAGE_UPDATE',
     data
-  }
+  )
+}
 
-  await publisher.publish(
-    channel,
-    JSON.stringify(message)
+export const publishAlertTriggered = (
+  userId: string,
+  data: object
+): Promise<void> => {
+  return publish(
+    userId,
+    'ALERT_TRIGGERED',
+    data
   )
 }
 
@@ -45,21 +58,17 @@ export const initSubscriber = async (): Promise<void> => {
 
   subscriber.on(
     'pmessage',
-    (
-      _pattern: string,
-      channel: string,
-      message: string
-    ) => {
+    (_pattern, channel, message) => {
       try {
         const userId = channel.replace(
           'usage:',
           ''
         )
 
-        const parsed =
+        broadcastToUser(
+          userId,
           JSON.parse(message)
-
-        broadcastToUser(userId, parsed)
+        )
       } catch (error) {
         console.error(
           '[PubSub] Failed to process message:',
