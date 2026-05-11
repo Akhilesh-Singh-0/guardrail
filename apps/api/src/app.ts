@@ -6,6 +6,7 @@ import proxyRouter from './modules/proxy/proxy.routes'
 import limitsRouter from './modules/limits/limits.routes'
 import usageRouter from './modules/usage/usage.routes'
 import adminRouter from './modules/admin/admin.routes'
+import alertsRouter from './modules/alerts/alerts.routes'
 import { prisma } from './config/prisma'
 import { redis } from './config/redis'
 
@@ -19,6 +20,7 @@ app.use('/proxy',  proxyRouter)
 app.use('/limits', limitsRouter)
 app.use('/usage',  usageRouter)
 app.use('/admin',  adminRouter)
+app.use('/alerts', alertsRouter)
 
 app.get('/health', async (req, res) => {
   try {
