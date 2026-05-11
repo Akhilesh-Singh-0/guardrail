@@ -3,7 +3,9 @@ import { Decimal } from 'decimal.js'
 import IORedis from 'ioredis'
 import { env } from '../config/env'
 import { prisma } from '../config/prisma'
+import { alertQueue } from '../queues/alert.queue'
 import { UsageJobData } from '../queues/usage.queue'
+import { getDailySpend, getMonthlySpend } from '../redis/counter'
 import { publishUsageUpdate } from '../redis/pubsub'
 
 const connection = new IORedis(
@@ -58,6 +60,36 @@ const processUsageJob = async (
       requestId
     })
 
+    const [
+      dailySpend,
+      monthlySpend
+    ] = await Promise.all([
+      getDailySpend(userId),
+      getMonthlySpend(userId)
+    ])
+
+    await alertQueue.add(
+      'threshold-check',
+      {
+        type: 'THRESHOLD_CHECK',
+        userId,
+
+        dailySpend:
+          dailySpend.toString(),
+
+        monthlySpend:
+          monthlySpend.toString()
+      }
+    )
+
+    await alertQueue.add(
+      'anomaly-check',
+      {
+        type: 'ANOMALY_CHECK',
+        userId
+      }
+    )
+
   } catch (error) {
     const prismaError = error as {
       code?: string
@@ -99,6 +131,7 @@ usageWorker.on('failed', (job, error) => {
   console.error(JSON.stringify({
     msg: 'Job failed',
     jobId: job?.id,
+
     error:
       error instanceof Error
         ? error.message

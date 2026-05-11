@@ -5,6 +5,7 @@ import { connectRedis } from './config/redis'
 import { initWebSocketServer } from './websocket/socket.server'
 import { initSubscriber, closePubSub } from './redis/pubsub'
 import './workers/usage.worker'
+import './workers/alert.worker'
 
 const startServer = async (): Promise<void> => {
   await connectRedis()
