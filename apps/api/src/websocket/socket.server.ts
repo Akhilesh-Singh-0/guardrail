@@ -33,7 +33,8 @@ const authenticateSocket = async (
   }
 
   const payload = await verifyToken(token, {
-    secretKey: env.CLERK_SECRET_KEY
+    secretKey: env.CLERK_SECRET_KEY,
+    authorizedParties: ['http://localhost:3000']
   })
 
   return payload.sub

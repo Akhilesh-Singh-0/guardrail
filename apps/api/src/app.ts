@@ -9,13 +9,22 @@ import adminRouter from './modules/admin/admin.routes'
 import alertsRouter from './modules/alerts/alerts.routes'
 import { prisma } from './config/prisma'
 import { redis } from './config/redis'
+import cors from 'cors'
 
 const app = express()
 
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}))
+
 app.use(requestId)
+
+// Auth MUST come before express.json() — Svix needs raw body
+app.use('/auth', authRouter)
+
 app.use(express.json())
 
-app.use('/auth',   authRouter)
 app.use('/proxy',  proxyRouter)
 app.use('/limits', limitsRouter)
 app.use('/usage',  usageRouter)
