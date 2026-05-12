@@ -1,11 +1,21 @@
 'use client'
 
 import { useState } from 'react'
+import { motion } from 'framer-motion'
 import { useAuth } from '@clerk/nextjs'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import type { LimitsResponse } from '@/types/api'
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 16 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { delay: i * 0.08, duration: 0.4, ease: [0.25, 0.4, 0.25, 1] }
+  })
+}
 
 type Alert = {
   id: string
@@ -16,6 +26,14 @@ type Alert = {
   createdAt: string
 }
 
+const alertLabel: Record<string, string> = {
+  DAILY_LIMIT_80:    'Daily spend at 80%',
+  DAILY_LIMIT_100:   'Daily limit reached',
+  MONTHLY_LIMIT_80:  'Monthly spend at 80%',
+  MONTHLY_LIMIT_100: 'Monthly limit reached',
+  ANOMALY:           'Spending anomaly detected',
+}
+
 const useAlerts = () => {
   const { isSignedIn, getToken } = useAuth()
   return useQuery<{ alerts: Alert[] }>({
@@ -23,9 +41,7 @@ const useAlerts = () => {
     enabled:  !!isSignedIn,
     queryFn:  async () => {
       const token = await getToken()
-      const { data } = await api.get('/alerts', {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      const { data } = await api.get('/alerts', { headers: { Authorization: `Bearer ${token}` } })
       return data
     }
   })
@@ -38,20 +54,10 @@ const useLimitsData = () => {
     enabled:  !!isSignedIn,
     queryFn:  async () => {
       const token = await getToken()
-      const { data } = await api.get('/limits', {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      const { data } = await api.get('/limits', { headers: { Authorization: `Bearer ${token}` } })
       return data
     }
   })
-}
-
-const alertLabel: Record<string, string> = {
-  DAILY_LIMIT_80:   'Daily spend at 80%',
-  DAILY_LIMIT_100:  'Daily limit reached',
-  MONTHLY_LIMIT_80: 'Monthly spend at 80%',
-  MONTHLY_LIMIT_100:'Monthly limit reached',
-  ANOMALY:          'Spending anomaly detected'
 }
 
 export default function SettingsPage() {
@@ -63,7 +69,7 @@ export default function SettingsPage() {
 
   const [dailyLimit,   setDailyLimit]   = useState('')
   const [monthlyLimit, setMonthlyLimit] = useState('')
-  const [editing, setEditing]           = useState(false)
+  const [editing,      setEditing]      = useState(false)
 
   const updateLimits = useMutation({
     mutationFn: async () => {
@@ -71,10 +77,7 @@ export default function SettingsPage() {
       const body: Record<string, string> = {}
       if (dailyLimit)   body.dailyLimitUSD   = dailyLimit
       if (monthlyLimit) body.monthlyLimitUSD = monthlyLimit
-
-      await api.patch('/limits', body, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      await api.patch('/limits', body, { headers: { Authorization: `Bearer ${token}` } })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['limits'] })
@@ -84,34 +87,20 @@ export default function SettingsPage() {
       setMonthlyLimit('')
       toast.success('Limits updated')
     },
-    onError: () => {
-      toast.error('Failed to update limits')
-    }
+    onError: () => toast.error('Failed to update limits')
   })
 
   const resolveAlert = useMutation({
     mutationFn: async (id: string) => {
       const token = await getToken()
-      await api.patch(`/alerts/${id}/resolve`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      await api.patch(`/alerts/${id}/resolve`, {}, { headers: { Authorization: `Bearer ${token}` } })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['alerts'] })
       toast.success('Alert resolved')
     },
-    onError: () => {
-      toast.error('Failed to resolve alert')
-    }
+    onError: () => toast.error('Failed to resolve alert')
   })
-
-  const handleSaveLimits = () => {
-    if (!dailyLimit && !monthlyLimit) {
-      toast.error('Enter at least one limit value')
-      return
-    }
-    updateLimits.mutate()
-  }
 
   const handleEditStart = () => {
     if (limits) {
@@ -121,36 +110,39 @@ export default function SettingsPage() {
     setEditing(true)
   }
 
+  const handleSave = () => {
+    if (!dailyLimit && !monthlyLimit) {
+      toast.error('Enter at least one limit value')
+      return
+    }
+    updateLimits.mutate()
+  }
+
   return (
-    <div>
-      <div className="mb-8">
+    <div className="max-w-5xl mx-auto">
+      <motion.div custom={0} variants={fadeUp} initial="hidden" animate="visible" className="mb-8">
         <h1 className="text-lg font-semibold text-foreground">Settings</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Manage your spending limits and alerts
-        </p>
-      </div>
+        <p className="text-sm text-muted-foreground mt-0.5">Manage your spending limits and alerts</p>
+      </motion.div>
 
       <div className="space-y-6 max-w-2xl">
 
-        <div className="rounded-lg border border-border bg-card">
+        <motion.div custom={1} variants={fadeUp} initial="hidden" animate="visible"
+          className="rounded-lg border border-border bg-card"
+        >
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
             <div>
               <p className="text-sm font-medium text-foreground">Spending limits</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Set daily and monthly caps for AI spend
-              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">Set daily and monthly caps for AI spend</p>
             </div>
             {!editing && (
-              <button
-                onClick={handleEditStart}
-                className="text-xs text-primary hover:opacity-80 transition-opacity"
-              >
+              <button onClick={handleEditStart} className="text-xs text-primary hover:opacity-80 transition-opacity">
                 Edit
               </button>
             )}
           </div>
 
-          <div className="p-5 space-y-4">
+          <div className="p-5">
             {limitsLoading ? (
               <div className="space-y-3">
                 <div className="h-8 bg-border rounded animate-pulse" />
@@ -158,37 +150,26 @@ export default function SettingsPage() {
               </div>
             ) : editing ? (
               <div className="space-y-3">
-                <div>
-                  <label className="text-xs text-muted-foreground block mb-1.5">
-                    Daily limit (USD)
-                  </label>
-                  <input
-                    type="number"
-                    value={dailyLimit}
-                    onChange={e => setDailyLimit(e.target.value)}
-                    placeholder="5.00"
-                    step="0.01"
-                    min="0"
-                    className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground block mb-1.5">
-                    Monthly limit (USD)
-                  </label>
-                  <input
-                    type="number"
-                    value={monthlyLimit}
-                    onChange={e => setMonthlyLimit(e.target.value)}
-                    placeholder="50.00"
-                    step="0.01"
-                    min="0"
-                    className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors font-mono"
-                  />
-                </div>
+                {[
+                  { label: 'Daily limit (USD)',   value: dailyLimit,   onChange: setDailyLimit,   placeholder: '5.00' },
+                  { label: 'Monthly limit (USD)', value: monthlyLimit, onChange: setMonthlyLimit, placeholder: '50.00' },
+                ].map(({ label, value, onChange, placeholder }) => (
+                  <div key={label}>
+                    <label className="text-xs text-muted-foreground block mb-1.5">{label}</label>
+                    <input
+                      type="number"
+                      value={value}
+                      onChange={e => onChange(e.target.value)}
+                      placeholder={placeholder}
+                      step="0.01"
+                      min="0"
+                      className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors font-mono"
+                    />
+                  </div>
+                ))}
                 <div className="flex items-center gap-2 pt-1">
                   <button
-                    onClick={handleSaveLimits}
+                    onClick={handleSave}
                     disabled={updateLimits.isPending}
                     className="text-xs bg-primary text-primary-foreground px-4 py-1.5 rounded-md font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
                   >
@@ -203,31 +184,30 @@ export default function SettingsPage() {
                 </div>
               </div>
             ) : limits ? (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between py-2">
-                  <span className="text-sm text-muted-foreground">Daily limit</span>
-                  <span className="text-sm font-mono font-medium text-foreground">
-                    ${parseFloat(limits.daily.limit).toFixed(2)}
-                  </span>
-                </div>
-                <div className="h-px bg-border" />
-                <div className="flex items-center justify-between py-2">
-                  <span className="text-sm text-muted-foreground">Monthly limit</span>
-                  <span className="text-sm font-mono font-medium text-foreground">
-                    ${parseFloat(limits.monthly.limit).toFixed(2)}
-                  </span>
-                </div>
+              <div className="space-y-1">
+                {[
+                  { label: 'Daily limit',   value: `$${parseFloat(limits.daily.limit).toFixed(2)}` },
+                  { label: 'Monthly limit', value: `$${parseFloat(limits.monthly.limit).toFixed(2)}` },
+                ].map(({ label, value }, i) => (
+                  <div key={label}>
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-sm text-muted-foreground">{label}</span>
+                      <span className="text-sm font-mono font-medium text-foreground">{value}</span>
+                    </div>
+                    {i === 0 && <div className="h-px bg-border" />}
+                  </div>
+                ))}
               </div>
             ) : null}
           </div>
-        </div>
+        </motion.div>
 
-        <div className="rounded-lg border border-border bg-card">
+        <motion.div custom={2} variants={fadeUp} initial="hidden" animate="visible"
+          className="rounded-lg border border-border bg-card"
+        >
           <div className="px-5 py-4 border-b border-border">
             <p className="text-sm font-medium text-foreground">Alerts</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Active alerts triggered by your spending
-            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">Active alerts triggered by your spending</p>
           </div>
 
           <div className="divide-y divide-border">
@@ -238,7 +218,7 @@ export default function SettingsPage() {
                 ))}
               </div>
             ) : !alertsData?.alerts.length ? (
-              <div className="p-8 text-center">
+              <div className="py-10 text-center">
                 <p className="text-sm text-muted-foreground">No active alerts</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   Alerts fire automatically when you approach your spending limits
@@ -246,18 +226,13 @@ export default function SettingsPage() {
               </div>
             ) : (
               alertsData.alerts.map(alert => (
-                <div
-                  key={alert.id}
-                  className="flex items-center justify-between px-5 py-3"
-                >
+                <div key={alert.id} className="flex items-center justify-between px-5 py-3">
                   <div className="flex items-center gap-3">
                     <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
                       alert.triggered ? 'bg-destructive' : 'bg-muted-foreground'
                     }`} />
                     <div>
-                      <p className="text-sm text-foreground">
-                        {alertLabel[alert.type] ?? alert.type}
-                      </p>
+                      <p className="text-sm text-foreground">{alertLabel[alert.type] ?? alert.type}</p>
                       {alert.triggeredAt && (
                         <p className="text-xs text-muted-foreground">
                           Triggered {new Date(alert.triggeredAt).toLocaleDateString()}
@@ -278,8 +253,7 @@ export default function SettingsPage() {
               ))
             )}
           </div>
-        </div>
-
+        </motion.div>
       </div>
     </div>
   )

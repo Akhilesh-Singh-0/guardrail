@@ -1,15 +1,38 @@
 'use client'
 
 import { useState } from 'react'
+import { motion } from 'framer-motion'
 import { useAuth } from '@clerk/nextjs'
 import { useSummary } from '@/hooks/use-summary'
 import { useWebSocket } from '@/hooks/use-websocket'
 import { formatDistanceToNow } from 'date-fns'
 import { api } from '@/lib/api'
 
-type Message = {
-  role: 'user' | 'assistant'
-  content: string
+const fadeUp = {
+  hidden: { opacity: 0, y: 16 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { delay: i * 0.08, duration: 0.4, ease: [0.25, 0.4, 0.25, 1] }
+  })
+}
+
+const formatCost = (value: string): string => {
+    const amount = Number(value)
+  
+    if (amount === 0) {
+      return '$0.000000'
+    }
+  
+    if (amount < 0.000001) {
+      return '<$0.000001'
+    }
+  
+    if (amount < 0.01) {
+      return `$${amount.toFixed(6)}`
+    }
+  
+    return `$${amount.toFixed(4)}`
 }
 
 type BillingSnapshot = {
@@ -31,35 +54,35 @@ const ModelBadge = ({ model }: { model: string }) => (
 )
 
 const BillingCard = ({ snapshot }: { snapshot: BillingSnapshot }) => (
-  <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+  <motion.div
+    initial={{ opacity: 0, y: 8 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.3 }}
+    className="rounded-lg border border-border bg-card p-4 space-y-3"
+  >
     <p className="text-xs font-medium text-foreground">Billing snapshot</p>
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">Model</span>
-        <ModelBadge model={snapshot.model} />
-      </div>
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">Prompt tokens</span>
-        <span className="text-xs font-mono text-foreground">{snapshot.promptTokens.toLocaleString()}</span>
-      </div>
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">Completion tokens</span>
-        <span className="text-xs font-mono text-foreground">{snapshot.completionTokens.toLocaleString()}</span>
-      </div>
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">Total tokens</span>
-        <span className="text-xs font-mono text-foreground">{snapshot.totalTokens.toLocaleString()}</span>
-      </div>
+      {[
+        { label: 'Model',             value: <ModelBadge model={snapshot.model} /> },
+        { label: 'Prompt tokens',     value: snapshot.promptTokens.toLocaleString() },
+        { label: 'Completion tokens', value: snapshot.completionTokens.toLocaleString() },
+        { label: 'Total tokens',      value: snapshot.totalTokens.toLocaleString() },
+      ].map(({ label, value }) => (
+        <div key={label} className="flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">{label}</span>
+          <span className="text-xs font-mono text-foreground">{value}</span>
+        </div>
+      ))}
       <div className="h-px bg-border" />
       <div className="flex items-center justify-between">
         <span className="text-xs text-muted-foreground">Cost</span>
         <span className="text-xs font-mono font-medium text-foreground">
-          ${parseFloat(snapshot.costUSD).toFixed(6)}
+        {formatCost(snapshot.costUSD)}
         </span>
       </div>
       <div className="flex items-center justify-between">
         <span className="text-xs text-muted-foreground">Request ID</span>
-        <span className="text-xs font-mono text-muted-foreground truncate max-w-[120px]">
+        <span className="text-xs font-mono text-muted-foreground">
           {snapshot.requestId.slice(0, 8)}...
         </span>
       </div>
@@ -70,75 +93,82 @@ const BillingCard = ({ snapshot }: { snapshot: BillingSnapshot }) => (
         </span>
       </div>
     </div>
-  </div>
+  </motion.div>
 )
 
 const SpendMeter = ({ summary }: { summary: ReturnType<typeof useSummary>['data'] }) => {
   if (!summary) return null
-
   return (
     <div className="rounded-lg border border-border bg-card p-4">
       <p className="text-xs font-medium text-foreground mb-3">Current spend</p>
       <div className="space-y-3">
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs text-muted-foreground">Daily</span>
-            <span className="text-xs font-mono text-foreground">
-              ${parseFloat(summary.daily.currentSpend).toFixed(4)} / ${parseFloat(summary.daily.limit).toFixed(2)}
-            </span>
+        {[
+          { label: 'Daily',   data: summary.daily },
+          { label: 'Monthly', data: summary.monthly },
+        ].map(({ label, data }) => (
+          <div key={label}>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-xs text-muted-foreground">{label}</span>
+              <span className="text-xs font-mono text-foreground">
+              ${parseFloat(data.currentSpend).toFixed(4)} / ${parseFloat(data.limit).toFixed(2)}
+              </span>
+            </div>
+            <div className="w-full h-1 bg-border rounded-full overflow-hidden">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.min(data.percentage, 100)}%` }}
+                transition={{ duration: 0.8, ease: 'easeOut' }}
+                className={`h-full rounded-full ${
+                  data.percentage >= 100 ? 'bg-destructive' :
+                  data.isApproachingLimit ? 'bg-amber-400' : 'bg-primary'
+                }`}
+              />
+            </div>
           </div>
-          <div className="w-full h-1 bg-border rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${
-                summary.daily.percentage >= 100 ? 'bg-destructive' :
-                summary.daily.isApproachingLimit ? 'bg-amber-400' : 'bg-primary'
-              }`}
-              style={{ width: `${Math.min(summary.daily.percentage, 100)}%` }}
-            />
-          </div>
-        </div>
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs text-muted-foreground">Monthly</span>
-            <span className="text-xs font-mono text-foreground">
-              ${parseFloat(summary.monthly.currentSpend).toFixed(4)} / ${parseFloat(summary.monthly.limit).toFixed(2)}
-            </span>
-          </div>
-          <div className="w-full h-1 bg-border rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${
-                summary.monthly.percentage >= 100 ? 'bg-destructive' :
-                summary.monthly.isApproachingLimit ? 'bg-amber-400' : 'bg-primary'
-              }`}
-              style={{ width: `${Math.min(summary.monthly.percentage, 100)}%` }}
-            />
-          </div>
-        </div>
+        ))}
       </div>
     </div>
   )
 }
 
-const MODELS = ['gpt-4o-mini', 'gpt-4o', 'gpt-3.5-turbo'] as const
-type Model = typeof MODELS[number]
+const MODELS = [
+    {
+      value: 'gpt-4o-mini',
+      label: 'Llama 3.1 8B',
+      provider: 'Groq',
+      description: 'Fastest',
+    },
+    {
+      value: 'gpt-4o',
+      label: 'Llama 3.3 70B',
+      provider: 'Groq',
+      description: 'Best quality',
+    },
+    {
+      value: 'gpt-3.5-turbo',
+      label: 'Mixtral 8x7B',
+      provider: 'Groq',
+      description: 'Balanced',
+    },
+  ] as const
+  
+type Model = (typeof MODELS)[number]['value']
 
 export default function PlaygroundPage() {
   useWebSocket()
-
   const { getToken } = useAuth()
   const { data: summary } = useSummary()
 
-  const [prompt, setPrompt]               = useState('')
-  const [model, setModel]                 = useState<Model>('gpt-4o-mini')
-  const [state, setState]                 = useState<RequestState>('idle')
-  const [response, setResponse]           = useState<string | null>(null)
-  const [billing, setBilling]             = useState<BillingSnapshot | null>(null)
-  const [errorMessage, setErrorMessage]   = useState<string | null>(null)
-  const [history, setHistory]             = useState<BillingSnapshot[]>([])
+  const [prompt, setPrompt]             = useState('')
+  const [model, setModel]               = useState<Model>('gpt-4o-mini')
+  const [state, setState]               = useState<RequestState>('idle')
+  const [response, setResponse]         = useState<string | null>(null)
+  const [billing, setBilling]           = useState<BillingSnapshot | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [history, setHistory]           = useState<BillingSnapshot[]>([])
 
   const handleSend = async () => {
     if (!prompt.trim() || state === 'loading') return
-
     setState('loading')
     setResponse(null)
     setBilling(null)
@@ -146,18 +176,11 @@ export default function PlaygroundPage() {
 
     try {
       const token = await getToken()
-
       const { data } = await api.post(
         '/proxy/chat',
-        {
-          model,
-          messages: [{ role: 'user', content: prompt.trim() }]
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
+        { model, messages: [{ role: 'user', content: prompt.trim() }] },
+        { headers: { Authorization: `Bearer ${token}` } }
       )
-
       const snapshot: BillingSnapshot = {
         model:            data.data.model,
         promptTokens:     data.data.usage.promptTokens,
@@ -167,17 +190,13 @@ export default function PlaygroundPage() {
         requestId:        data.requestId,
         timestamp:        new Date()
       }
-
       setResponse(data.data.content)
       setBilling(snapshot)
       setHistory(prev => [snapshot, ...prev].slice(0, 10))
       setState('success')
       setPrompt('')
-
     } catch (error: any) {
-      const code = error?.response?.data?.error?.code
       const message = error?.response?.data?.error?.message
-
       if (error?.response?.status === 402) {
         setState('blocked')
         setErrorMessage(message ?? 'Spending limit exceeded')
@@ -189,53 +208,73 @@ export default function PlaygroundPage() {
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-      handleSend()
-    }
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSend()
   }
 
   return (
-    <div>
-      <div className="mb-8">
+    <div className="max-w-5xl mx-auto">
+      <motion.div
+        custom={0}
+        variants={fadeUp}
+        initial="hidden"
+        animate="visible"
+        className="mb-6"
+      >
         <h1 className="text-lg font-semibold text-foreground">Playground</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
           Send prompts through Guardrail and watch billing happen in real time
         </p>
-      </div>
+      </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
 
-        <div className="lg:col-span-3 space-y-4">
-
-          <div className="flex items-center gap-2">
-            {MODELS.map(m => (
-              <button
-                key={m}
-                onClick={() => setModel(m)}
-                className={`text-xs font-mono px-3 py-1.5 rounded-md border transition-colors ${
-                  model === m
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-border text-muted-foreground hover:text-foreground hover:border-border/80'
-                }`}
-              >
-                {m}
-              </button>
-            ))}
-          </div>
-
+        <motion.div
+          custom={1}
+          variants={fadeUp}
+          initial="hidden"
+          animate="visible"
+          className="lg:col-span-3 space-y-4"
+        >
           <div className="rounded-lg border border-border bg-card overflow-hidden">
+
+          <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-border">
+  {MODELS.map((m) => (
+    <button
+      key={m.value}
+      onClick={() => setModel(m.value)}
+      className={`group relative min-w-[148px] rounded-xl border px-3 py-2 text-left transition-all duration-200 ${
+        model === m.value
+          ? 'border-primary bg-primary/10 shadow-[0_0_0_1px_rgba(99,102,241,0.12)]'
+          : 'border-border hover:border-primary/30 hover:bg-primary/5'
+      }`}
+    >
+            <div className="flex items-center justify-between">
+            <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-primary/80">
+            {m.provider}
+            </span>
+
+            <span className="text-[10px]       text-muted-foreground">
+            {m.description}
+            </span>
+            </div>
+
+            <p className="mt-1 text-xs font-medium text-foreground">
+            {m.label}
+            </p>
+            </button>
+            ))}
+            </div>
+
             <textarea
               value={prompt}
               onChange={e => setPrompt(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Type a prompt..."
-              rows={6}
+              rows={8}
               className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground p-4 resize-none focus:outline-none"
             />
             <div className="flex items-center justify-between px-4 py-3 border-t border-border">
-              <span className="text-xs text-muted-foreground">
-                ⌘ + Enter to send
-              </span>
+              <span className="text-xs text-muted-foreground">⌘ + Enter to send</span>
               <button
                 onClick={handleSend}
                 disabled={!prompt.trim() || state === 'loading'}
@@ -248,72 +287,85 @@ export default function PlaygroundPage() {
 
           {state === 'loading' && (
             <div className="rounded-lg border border-border bg-card p-4 space-y-2">
-              <div className="h-3 bg-border rounded animate-pulse w-3/4" />
-              <div className="h-3 bg-border rounded animate-pulse w-1/2" />
-              <div className="h-3 bg-border rounded animate-pulse w-2/3" />
+              {[75, 50, 62].map((w, i) => (
+                <div
+                  key={i}
+                  className="h-3 bg-border rounded animate-pulse"
+                  style={{ width: `${w}%` }}
+                />
+              ))}
             </div>
           )}
 
           {state === 'success' && response && (
-            <div className="rounded-lg border border-border bg-card p-4">
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-lg border border-border bg-card p-4"
+            >
               <p className="text-xs text-muted-foreground mb-2">Response</p>
               <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
                 {response}
               </p>
-            </div>
+            </motion.div>
           )}
 
           {(state === 'blocked' || state === 'error') && errorMessage && (
-            <div className={`rounded-lg border p-4 ${
-              state === 'blocked'
-                ? 'border-destructive/40 bg-destructive/5'
-                : 'border-border bg-card'
-            }`}>
-              <div className="flex items-center gap-2 mb-1">
-                <span className={`text-xs font-medium ${
-                  state === 'blocked' ? 'text-destructive' : 'text-foreground'
-                }`}>
-                  {state === 'blocked' ? '402 — Limit exceeded' : 'Error'}
-                </span>
-              </div>
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`rounded-lg border p-4 ${
+                state === 'blocked'
+                  ? 'border-destructive/40 bg-destructive/5'
+                  : 'border-border bg-card'
+              }`}
+            >
+              <p className={`text-xs font-medium mb-1 ${
+                state === 'blocked' ? 'text-destructive' : 'text-foreground'
+              }`}>
+                {state === 'blocked' ? '402 — Limit exceeded' : 'Error'}
+              </p>
               <p className="text-xs text-muted-foreground">{errorMessage}</p>
-            </div>
+            </motion.div>
           )}
 
           {history.length > 0 && (
             <div>
               <p className="text-xs font-medium text-foreground mb-2">Request history</p>
-              <div className="rounded-lg border border-border overflow-hidden">
-                <div className="divide-y divide-border">
-                  {history.map((h, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between px-4 py-3 hover:bg-accent/30 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <ModelBadge model={h.model} />
-                        <span className="text-xs text-muted-foreground">
-                          {h.totalTokens.toLocaleString()} tokens
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <span className="text-xs font-mono text-foreground">
-                          ${parseFloat(h.costUSD).toFixed(6)}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(h.timestamp, { addSuffix: true })}
-                        </span>
-                      </div>
+              <div className="rounded-lg border border-border overflow-hidden divide-y divide-border">
+                {history.map((h, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between px-4 py-3 hover:bg-accent/30 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <ModelBadge model={h.model} />
+                      <span className="text-xs text-muted-foreground">
+                        {h.totalTokens.toLocaleString()} tokens
+                      </span>
                     </div>
-                  ))}
-                </div>
+                    <div className="flex items-center gap-4">
+                      <span className="text-xs font-mono text-foreground">
+                      {formatCost(h.costUSD)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(h.timestamp, { addSuffix: true })}
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
-        </div>
+        </motion.div>
 
-        <div className="lg:col-span-2 space-y-4">
-
+        <motion.div
+          custom={2}
+          variants={fadeUp}
+          initial="hidden"
+          animate="visible"
+          className="lg:col-span-2 space-y-4"
+        >
           <SpendMeter summary={summary} />
 
           {state === 'loading' && (
@@ -341,7 +393,7 @@ export default function PlaygroundPage() {
               </p>
             </div>
           )}
-        </div>
+        </motion.div>
       </div>
     </div>
   )

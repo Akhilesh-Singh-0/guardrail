@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Logo } from '@/components/logo'
 import { UserButton, useUser } from '@clerk/nextjs'
-import { clerkAppearance } from '@/lib/clerk-appearance'
 
 const links = [
   { href: '/dashboard',  label: 'Dashboard'  },
@@ -31,7 +30,7 @@ export const Nav = () => {
               href={href}
               className={`px-3 py-2 rounded-md text-sm transition-colors ${
                 active
-                  ? 'bg-accent/60 text-foreground font-medium'
+                  ? 'bg-primary/10 text-primary font-medium'
                   : 'text-muted-foreground hover:text-foreground hover:bg-accent/40'
               }`}
             >
@@ -41,15 +40,17 @@ export const Nav = () => {
         })}
       </nav>
 
-      <div className="pt-4 border-t border-border flex items-center gap-3 px-1">
-        <UserButton appearance={clerkAppearance} />
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-foreground truncate">
-            {user?.fullName ?? user?.firstName ?? 'User'}
-          </p>
-          <p className="text-xs text-muted-foreground truncate">
-            {user?.primaryEmailAddress?.emailAddress}
-          </p>
+      <div className="pt-4 border-t border-border px-1">
+        <div className="flex items-center gap-2.5">
+          <UserButton />
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium text-foreground truncate leading-tight">
+              {user?.fullName ?? user?.firstName ?? 'User'}
+            </p>
+            <p className="text-[11px] text-muted-foreground truncate leading-tight mt-0.5">
+              {user?.primaryEmailAddress?.emailAddress}
+            </p>
+          </div>
         </div>
       </div>
     </aside>
