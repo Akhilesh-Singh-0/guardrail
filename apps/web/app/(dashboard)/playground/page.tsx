@@ -7,6 +7,7 @@ import { useSummary } from '@/hooks/use-summary'
 import { useWebSocket } from '@/hooks/use-websocket'
 import { formatDistanceToNow } from 'date-fns'
 import { api } from '@/lib/api'
+import { MODELS, getModelLabel, type ModelValue } from '@/lib/models'
 
 const fadeUp = {
   hidden: { opacity: 0, y: 16 },
@@ -18,21 +19,11 @@ const fadeUp = {
 }
 
 const formatCost = (value: string): string => {
-    const amount = Number(value)
-  
-    if (amount === 0) {
-      return '$0.000000'
-    }
-  
-    if (amount < 0.000001) {
-      return '<$0.000001'
-    }
-  
-    if (amount < 0.01) {
-      return `$${amount.toFixed(6)}`
-    }
-  
-    return `$${amount.toFixed(4)}`
+  const amount = Number(value)
+  if (amount === 0) return '$0.000000'
+  if (amount < 0.000001) return '<$0.000001'
+  if (amount < 0.01) return `$${amount.toFixed(6)}`
+  return `$${amount.toFixed(4)}`
 }
 
 type BillingSnapshot = {
@@ -46,10 +37,11 @@ type BillingSnapshot = {
 }
 
 type RequestState = 'idle' | 'loading' | 'success' | 'blocked' | 'error'
+type Model = ModelValue
 
 const ModelBadge = ({ model }: { model: string }) => (
   <span className="text-xs font-mono bg-accent text-accent-foreground px-2 py-0.5 rounded">
-    {model}
+    {getModelLabel(model)}
   </span>
 )
 
@@ -77,7 +69,7 @@ const BillingCard = ({ snapshot }: { snapshot: BillingSnapshot }) => (
       <div className="flex items-center justify-between">
         <span className="text-xs text-muted-foreground">Cost</span>
         <span className="text-xs font-mono font-medium text-foreground">
-        {formatCost(snapshot.costUSD)}
+          {formatCost(snapshot.costUSD)}
         </span>
       </div>
       <div className="flex items-center justify-between">
@@ -110,7 +102,7 @@ const SpendMeter = ({ summary }: { summary: ReturnType<typeof useSummary>['data'
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-xs text-muted-foreground">{label}</span>
               <span className="text-xs font-mono text-foreground">
-              ${parseFloat(data.currentSpend).toFixed(4)} / ${parseFloat(data.limit).toFixed(2)}
+                {formatCost(data.currentSpend)} / ${parseFloat(data.limit).toFixed(2)}
               </span>
             </div>
             <div className="w-full h-1 bg-border rounded-full overflow-hidden">
@@ -130,29 +122,6 @@ const SpendMeter = ({ summary }: { summary: ReturnType<typeof useSummary>['data'
     </div>
   )
 }
-
-const MODELS = [
-    {
-      value: 'gpt-4o-mini',
-      label: 'Llama 3.1 8B',
-      provider: 'Groq',
-      description: 'Fastest',
-    },
-    {
-      value: 'gpt-4o',
-      label: 'Llama 3.3 70B',
-      provider: 'Groq',
-      description: 'Best quality',
-    },
-    {
-      value: 'gpt-3.5-turbo',
-      label: 'Mixtral 8x7B',
-      provider: 'Groq',
-      description: 'Balanced',
-    },
-  ] as const
-  
-type Model = (typeof MODELS)[number]['value']
 
 export default function PlaygroundPage() {
   useWebSocket()
@@ -213,13 +182,7 @@ export default function PlaygroundPage() {
 
   return (
     <div className="max-w-5xl mx-auto">
-      <motion.div
-        custom={0}
-        variants={fadeUp}
-        initial="hidden"
-        animate="visible"
-        className="mb-6"
-      >
+      <motion.div custom={0} variants={fadeUp} initial="hidden" animate="visible" className="mb-6">
         <h1 className="text-lg font-semibold text-foreground">Playground</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
           Send prompts through Guardrail and watch billing happen in real time
@@ -228,41 +191,40 @@ export default function PlaygroundPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
 
-        <motion.div
-          custom={1}
-          variants={fadeUp}
-          initial="hidden"
-          animate="visible"
-          className="lg:col-span-3 space-y-4"
-        >
+        <motion.div custom={1} variants={fadeUp} initial="hidden" animate="visible" className="lg:col-span-3 space-y-4">
           <div className="rounded-lg border border-border bg-card overflow-hidden">
 
-          <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-border">
-  {MODELS.map((m) => (
-    <button
-      key={m.value}
-      onClick={() => setModel(m.value)}
-      className={`group relative min-w-[148px] rounded-xl border px-3 py-2 text-left transition-all duration-200 ${
-        model === m.value
-          ? 'border-primary bg-primary/10 shadow-[0_0_0_1px_rgba(99,102,241,0.12)]'
-          : 'border-border hover:border-primary/30 hover:bg-primary/5'
-      }`}
-    >
-            <div className="flex items-center justify-between">
-            <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-primary/80">
-            {m.provider}
-            </span>
-
-            <span className="text-[10px]       text-muted-foreground">
-            {m.description}
-            </span>
-            </div>
-
-            <p className="mt-1 text-xs font-medium text-foreground">
-            {m.label}
-            </p>
-            </button>
-            ))}
+            <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-border">
+              {MODELS.map(m => (
+                <button
+                  key={m.value}
+                  onClick={() => !m.disabled && setModel(m.value as Model)}
+                  disabled={m.disabled}
+                  className={`group relative min-w-[148px] rounded-xl border px-3 py-2 text-left transition-all duration-200 ${
+                    m.disabled
+                      ? 'border-border opacity-50 cursor-not-allowed'
+                      : model === m.value
+                      ? 'border-primary bg-primary/10 shadow-[0_0_0_1px_rgba(99,102,241,0.12)]'
+                      : 'border-border hover:border-primary/30 hover:bg-primary/5'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className={`text-[10px] font-medium uppercase tracking-[0.14em] ${
+                      m.disabled ? 'text-muted-foreground' : 'text-primary/80'
+                    }`}>
+                      {m.provider}
+                    </span>
+                    {m.disabled ? (
+                      <span className="text-[10px] text-muted-foreground border border-border rounded px-1">
+                        Soon
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground">{m.description}</span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs font-medium text-foreground">{m.label}</p>
+                </button>
+              ))}
             </div>
 
             <textarea
@@ -278,9 +240,14 @@ export default function PlaygroundPage() {
               <button
                 onClick={handleSend}
                 disabled={!prompt.trim() || state === 'loading'}
-                className="text-xs bg-primary text-primary-foreground px-4 py-1.5 rounded-md font-medium hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                className="inline-flex items-center justify-center min-w-[110px] text-xs bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:opacity-90 hover:shadow-[0_0_24px_rgba(99,102,241,0.25)] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {state === 'loading' ? 'Sending...' : 'Send'}
+                {state === 'loading' ? (
+                  <span className="flex items-center gap-2">
+                    <span className="h-3 w-3 rounded-full border border-current border-t-transparent animate-spin" />
+                    Generating
+                  </span>
+                ) : 'Send'}
               </button>
             </div>
           </div>
@@ -288,25 +255,30 @@ export default function PlaygroundPage() {
           {state === 'loading' && (
             <div className="rounded-lg border border-border bg-card p-4 space-y-2">
               {[75, 50, 62].map((w, i) => (
-                <div
-                  key={i}
-                  className="h-3 bg-border rounded animate-pulse"
-                  style={{ width: `${w}%` }}
-                />
+                <div key={i} className="h-3 bg-border rounded animate-pulse" style={{ width: `${w}%` }} />
               ))}
             </div>
           )}
 
           {state === 'success' && response && (
             <motion.div
-              initial={{ opacity: 0, y: 8 }}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              className="rounded-lg border border-border bg-card p-4"
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              className="rounded-2xl border border-border/80 bg-card/80 backdrop-blur-sm shadow-sm"
             >
-              <p className="text-xs text-muted-foreground mb-2">Response</p>
-              <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-                {response}
-              </p>
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border/60">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Response</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Generated through Guardrail</p>
+                </div>
+                {billing && <ModelBadge model={billing.model} />}
+              </div>
+              <div className="px-5 py-5">
+                <div className="max-w-none whitespace-pre-wrap break-words text-[15px] leading-8 text-foreground">
+                  {response}
+                </div>
+              </div>
             </motion.div>
           )}
 
@@ -315,9 +287,7 @@ export default function PlaygroundPage() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               className={`rounded-lg border p-4 ${
-                state === 'blocked'
-                  ? 'border-destructive/40 bg-destructive/5'
-                  : 'border-border bg-card'
+                state === 'blocked' ? 'border-destructive/40 bg-destructive/5' : 'border-border bg-card'
               }`}
             >
               <p className={`text-xs font-medium mb-1 ${
@@ -334,10 +304,7 @@ export default function PlaygroundPage() {
               <p className="text-xs font-medium text-foreground mb-2">Request history</p>
               <div className="rounded-lg border border-border overflow-hidden divide-y divide-border">
                 {history.map((h, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between px-4 py-3 hover:bg-accent/30 transition-colors"
-                  >
+                  <div key={i} className="flex items-center justify-between px-4 py-3 hover:bg-accent/30 transition-colors">
                     <div className="flex items-center gap-3">
                       <ModelBadge model={h.model} />
                       <span className="text-xs text-muted-foreground">
@@ -345,9 +312,7 @@ export default function PlaygroundPage() {
                       </span>
                     </div>
                     <div className="flex items-center gap-4">
-                      <span className="text-xs font-mono text-foreground">
-                      {formatCost(h.costUSD)}
-                      </span>
+                      <span className="text-xs font-mono text-foreground">{formatCost(h.costUSD)}</span>
                       <span className="text-xs text-muted-foreground">
                         {formatDistanceToNow(h.timestamp, { addSuffix: true })}
                       </span>
@@ -359,13 +324,7 @@ export default function PlaygroundPage() {
           )}
         </motion.div>
 
-        <motion.div
-          custom={2}
-          variants={fadeUp}
-          initial="hidden"
-          animate="visible"
-          className="lg:col-span-2 space-y-4"
-        >
+        <motion.div custom={2} variants={fadeUp} initial="hidden" animate="visible" className="lg:col-span-2 space-y-4">
           <SpendMeter summary={summary} />
 
           {state === 'loading' && (
@@ -382,9 +341,7 @@ export default function PlaygroundPage() {
             </div>
           )}
 
-          {billing && state === 'success' && (
-            <BillingCard snapshot={billing} />
-          )}
+          {billing && state === 'success' && <BillingCard snapshot={billing} />}
 
           {!billing && state === 'idle' && (
             <div className="rounded-lg border border-border bg-card p-4">
