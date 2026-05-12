@@ -28,6 +28,7 @@
     "decimal.js": "^10.6.0",
     "dotenv": "^17.4.2",
     "express": "^4.22.1",
+    "groq-sdk": "^1.2.0",
     "ioredis": "^5.10.1",
     "openai": "^6.34.0",
     "prisma": "^7.8.0",

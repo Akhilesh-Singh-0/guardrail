@@ -1,10 +1,10 @@
+import Decimal from "decimal.js"
+import { AppError } from "../../lib/AppError"
+import { generateIdempotencyKey } from "../../lib/idempotency"
 import { callOpenAI, Message } from "../../lib/openai"
 import { calculateCost, getSupportedModels } from "../../lib/pricing"
-import { AppError } from "../../lib/AppError"
-import { checkCanProceed } from "../limits/limits.service"
 import { checkAndIncrementAtomic } from "../../redis/counter"
-import { generateIdempotencyKey } from "../../lib/idempotency"
-import Decimal from "decimal.js"
+import { checkCanProceed } from "../limits/limits.service"
 
 interface ChatRequest {
   userId: string
@@ -15,38 +15,66 @@ interface ChatRequest {
 
 const supportedModels = getSupportedModels()
 
+type SupportedModel = (typeof supportedModels)[number]
+
+const SAFETY_BUFFER_MULTIPLIER = new Decimal(5)
+
 const estimatePromptCost = (
-  model: (typeof supportedModels)[number],
+  model: SupportedModel,
   messages: Message[]
 ): Decimal => {
-  const totalChars = messages.reduce((sum, m) => sum + m.content.length, 0)
-  const estimatedTokens = Math.ceil(totalChars / 4)
-  return calculateCost(model, estimatedTokens, 0)
+  const totalCharacters = messages.reduce(
+    (sum, message) => sum + message.content.length,
+    0
+  )
+
+  const estimatedPromptTokens = Math.ceil(totalCharacters / 4)
+
+  return calculateCost(model, estimatedPromptTokens, 0)
 }
 
 const applySafetyBuffer = (estimatedCost: Decimal): Decimal => {
-  const concurrencyFactor = new Decimal(5)
-  return estimatedCost.mul(concurrencyFactor)
+  return estimatedCost.mul(SAFETY_BUFFER_MULTIPLIER)
+}
+
+const sanitizeJobId = (jobId: string): string => {
+  return jobId.replace(/:/g, "-")
 }
 
 export const processChatRequest = async ({
   userId,
   model,
   messages,
-  requestId
+  requestId,
 }: ChatRequest) => {
-  if (!supportedModels.includes(model as any)) {
-    throw new AppError("Unsupported model", 400, "INVALID_MODEL")
+  if (!supportedModels.includes(model as SupportedModel)) {
+    throw new AppError(
+      "Unsupported model",
+      400,
+      "INVALID_MODEL"
+    )
   }
 
-  const typedModel = model as (typeof supportedModels)[number]
+  const typedModel = model as SupportedModel
 
-  const idempotencyKey = generateIdempotencyKey(userId, requestId)
+  const idempotencyKey = generateIdempotencyKey(
+    userId,
+    requestId
+  )
 
-  const estimatedCost = estimatePromptCost(typedModel, messages)
-  const bufferedCost = applySafetyBuffer(estimatedCost)
+  const estimatedCost = estimatePromptCost(
+    typedModel,
+    messages
+  )
 
-  const { allowed, reason } = await checkCanProceed(bufferedCost, userId)
+  const bufferedCost = applySafetyBuffer(
+    estimatedCost
+  )
+
+  const { allowed, reason } = await checkCanProceed(
+    bufferedCost,
+    userId
+  )
 
   if (!allowed) {
     throw new AppError(
@@ -56,7 +84,11 @@ export const processChatRequest = async ({
     )
   }
 
-  const response = await callOpenAI(typedModel, messages, requestId)
+  const response = await callOpenAI(
+    typedModel,
+    messages,
+    requestId
+  )
 
   const actualCost = calculateCost(
     typedModel,
@@ -64,7 +96,10 @@ export const processChatRequest = async ({
     response.usage.completionTokens
   )
 
-  const { getUserLimits } = await import("../limits/limits.repository")
+  const { getUserLimits } = await import(
+    "../limits/limits.repository"
+  )
+
   const limits = await getUserLimits(userId)
 
   await checkAndIncrementAtomic(
@@ -74,7 +109,9 @@ export const processChatRequest = async ({
     new Decimal(limits.monthlyLimitUSD.toString())
   )
 
-  const { usageQueue } = await import("../../queues/usage.queue")
+  const { usageQueue } = await import(
+    "../../queues/usage.queue"
+  )
 
   await usageQueue.add(
     "process-usage",
@@ -86,10 +123,10 @@ export const processChatRequest = async ({
       promptTokens: response.usage.promptTokens,
       completionTokens: response.usage.completionTokens,
       totalTokens: response.usage.totalTokens,
-      costUsd: actualCost.toString()
+      costUsd: actualCost.toString(),
     },
     {
-      jobId: idempotencyKey
+      jobId: sanitizeJobId(idempotencyKey),
     }
   )
 
@@ -97,6 +134,6 @@ export const processChatRequest = async ({
     content: response.content,
     usage: response.usage,
     costUSD: actualCost.toString(),
-    model: typedModel
+    model: typedModel,
   }
 }

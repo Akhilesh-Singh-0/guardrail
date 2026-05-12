@@ -1,9 +1,23 @@
 import OpenAI from 'openai'
 import { env } from '../config/env'
 import { AppError } from './AppError'
+import { getProviderModel } from './pricing'
+
+const providerConfig = {
+  openai: {
+    apiKey: env.OPENAI_API_KEY,
+    baseURL: undefined,
+  },
+
+  groq: {
+    apiKey: env.GROQ_API_KEY,
+    baseURL: 'https://api.groq.com/openai/v1',
+  },
+} as const
 
 const client = new OpenAI({
-  apiKey: env.OPENAI_API_KEY,
+  apiKey: providerConfig[env.AI_PROVIDER].apiKey,
+  baseURL: providerConfig[env.AI_PROVIDER].baseURL,
   timeout: 10000,
 })
 
@@ -28,25 +42,35 @@ export async function callOpenAI(
 ): Promise<OpenAIResponse> {
   try {
     const response = await client.chat.completions.create(
-        {
-          model,
-          messages,
-        },
-        {
-          headers: requestId ? { 'x-request-id': requestId } : undefined,
-        }
+      {
+        model: getProviderModel(model as any),
+        messages,
+      },
+      {
+        headers: requestId
+          ? { 'x-request-id': requestId }
+          : undefined,
+      }
     )
 
     const choice = response.choices?.[0]
 
-    if (!choice || !choice.message?.content) {
-      throw new AppError('Empty response from OpenAI', 500, 'OPENAI_EMPTY_RESPONSE')
+    if (!choice?.message?.content) {
+      throw new AppError(
+        'Empty response from AI provider',
+        500,
+        'AI_EMPTY_RESPONSE'
+      )
     }
 
     const usage = response.usage
 
     if (!usage) {
-      throw new AppError('Missing usage data from OpenAI', 500, 'OPENAI_MISSING_USAGE')
+      throw new AppError(
+        'Missing usage data from AI provider',
+        500,
+        'AI_MISSING_USAGE'
+      )
     }
 
     return {
@@ -58,24 +82,45 @@ export async function callOpenAI(
       },
     }
   } catch (error: any) {
-    if (error instanceof AppError) throw error
+    console.error('[AI Provider Error]', {
+      status: error?.status,
+      message: error?.message,
+      response: error?.response?.data,
+      cause: error,
+    })
+  
+    if (error instanceof AppError) {
+      throw error
+    }
 
     if (error?.status === 429) {
-      throw new AppError('OpenAI rate limit exceeded', 429, 'OPENAI_RATE_LIMIT')
+      throw new AppError(
+        'AI provider rate limit exceeded',
+        429,
+        'AI_RATE_LIMIT'
+      )
     }
 
     if (error?.status === 401) {
-      throw new AppError('Invalid OpenAI API key', 401, 'OPENAI_INVALID_KEY')
+      throw new AppError(
+        'Invalid AI provider API key',
+        401,
+        'AI_INVALID_KEY'
+      )
     }
 
     if (error?.status === 400) {
-      throw new AppError('Invalid OpenAI request', 400, 'OPENAI_BAD_REQUEST')
+      throw new AppError(
+        'Invalid AI provider request',
+        400,
+        'AI_BAD_REQUEST'
+      )
     }
 
     throw new AppError(
-      `OpenAI request failed: ${error?.message || 'unknown error'}`,
+      `AI provider request failed: ${error?.message || 'unknown error'}`,
       500,
-      'OPENAI_ERROR'
+      'AI_ERROR'
     )
   }
 }

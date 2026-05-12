@@ -1,18 +1,33 @@
 import Decimal from 'decimal.js'
 import { AppError } from './AppError'
+import { env } from '../config/env'
 
 const TOKENS_PER_UNIT = 1000
 
 const MODEL_PRICING = {
   'gpt-4o': {
+    providerModel: {
+      openai: 'gpt-4o',
+      groq: 'llama-3.1-70b-versatile',
+    },
     inputPer1kTokens: '0.000005',
     outputPer1kTokens: '0.000015',
   },
+
   'gpt-4o-mini': {
+    providerModel: {
+      openai: 'gpt-4o-mini',
+      groq: 'llama-3.1-8b-instant',
+    },
     inputPer1kTokens: '0.00000015',
     outputPer1kTokens: '0.0000006',
   },
+
   'gpt-3.5-turbo': {
+    providerModel: {
+      openai: 'gpt-3.5-turbo',
+      groq: 'mixtral-8x7b-32768',
+    },
     inputPer1kTokens: '0.0000005',
     outputPer1kTokens: '0.0000015',
   },
@@ -52,4 +67,18 @@ export function calculateCost(
 
 export function getSupportedModels(): SupportedModel[] {
   return Object.keys(MODEL_PRICING) as SupportedModel[]
+}
+
+export function getProviderModel(model: SupportedModel): string {
+  const pricing = MODEL_PRICING[model]
+
+  if (!pricing) {
+    throw new AppError(
+      `Model '${model}' is not supported`,
+      400,
+      'UNSUPPORTED_MODEL'
+    )
+  }
+
+  return pricing.providerModel[env.AI_PROVIDER]
 }
