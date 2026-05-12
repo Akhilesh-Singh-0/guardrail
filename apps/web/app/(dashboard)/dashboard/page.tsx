@@ -5,6 +5,7 @@ import { useSummary } from '@/hooks/use-summary'
 import { useEvents } from '@/hooks/use-events'
 import { useWebSocket } from '@/hooks/use-websocket'
 import { formatDistanceToNow } from 'date-fns'
+import { getModelLabel } from '@/lib/models'
 
 const fadeUp = {
   hidden: { opacity: 0, y: 16 },
@@ -16,12 +17,7 @@ const fadeUp = {
 }
 
 const SpendCard = ({
-  label,
-  spent,
-  limit,
-  percentage,
-  isApproaching,
-  index
+  label, spent, limit, percentage, isApproaching, index
 }: {
   label: string
   spent: string
@@ -40,11 +36,8 @@ const SpendCard = ({
     <div className="flex items-center justify-between mb-3">
       <p className="text-xs text-muted-foreground">{label}</p>
       <span className={`text-xs font-mono ${
-        percentage >= 100
-          ? 'text-destructive'
-          : isApproaching
-          ? 'text-amber-400'
-          : 'text-muted-foreground'
+        percentage >= 100 ? 'text-destructive' :
+        isApproaching ? 'text-amber-400' : 'text-muted-foreground'
       }`}>
         {percentage.toFixed(1)}%
       </span>
@@ -58,11 +51,8 @@ const SpendCard = ({
         animate={{ width: `${Math.min(percentage, 100)}%` }}
         transition={{ delay: 0.4 + index * 0.1, duration: 0.8, ease: 'easeOut' }}
         className={`h-full rounded-full ${
-          percentage >= 100
-            ? 'bg-destructive'
-            : isApproaching
-            ? 'bg-amber-400'
-            : 'bg-primary'
+          percentage >= 100 ? 'bg-destructive' :
+          isApproaching ? 'bg-amber-400' : 'bg-primary'
         }`}
       />
     </div>
@@ -72,11 +62,7 @@ const SpendCard = ({
   </motion.div>
 )
 
-const StatCard = ({
-  label,
-  value,
-  index
-}: {
+const StatCard = ({ label, value, index }: {
   label: string
   value: string | number
   index: number
@@ -94,10 +80,7 @@ const StatCard = ({
 )
 
 const SkeletonCard = ({ height }: { height: string }) => (
-  <div
-    className="rounded-lg border border-border bg-card skeleton-shimmer"
-    style={{ height }}
-  />
+  <div className="rounded-lg border border-border bg-card skeleton-shimmer" style={{ height }} />
 )
 
 export default function DashboardPage() {
@@ -108,17 +91,9 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-5xl mx-auto">
-      <motion.div
-        custom={0}
-        variants={fadeUp}
-        initial="hidden"
-        animate="visible"
-        className="mb-8"
-      >
+      <motion.div custom={0} variants={fadeUp} initial="hidden" animate="visible" className="mb-8">
         <h1 className="text-lg font-semibold text-foreground">Dashboard</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Monitor your AI spend in real time
-        </p>
+        <p className="text-sm text-muted-foreground mt-0.5">Monitor your AI spend in real time</p>
       </motion.div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
@@ -129,22 +104,8 @@ export default function DashboardPage() {
           </>
         ) : summary ? (
           <>
-            <SpendCard
-              index={1}
-              label="Daily spend"
-              spent={summary.daily.currentSpend}
-              limit={summary.daily.limit}
-              percentage={summary.daily.percentage}
-              isApproaching={summary.daily.isApproachingLimit}
-            />
-            <SpendCard
-              index={2}
-              label="Monthly spend"
-              spent={summary.monthly.currentSpend}
-              limit={summary.monthly.limit}
-              percentage={summary.monthly.percentage}
-              isApproaching={summary.monthly.isApproachingLimit}
-            />
+            <SpendCard index={1} label="Daily spend"   spent={summary.daily.currentSpend}   limit={summary.daily.limit}   percentage={summary.daily.percentage}   isApproaching={summary.daily.isApproachingLimit} />
+            <SpendCard index={2} label="Monthly spend" spent={summary.monthly.currentSpend} limit={summary.monthly.limit} percentage={summary.monthly.percentage} isApproaching={summary.monthly.isApproachingLimit} />
           </>
         ) : null}
       </div>
@@ -158,19 +119,14 @@ export default function DashboardPage() {
           </>
         ) : summary ? (
           <>
-            <StatCard index={3} label="Requests today" value={summary.daily.requests} />
-            <StatCard index={4} label="Tokens today" value={summary.daily.totalTokens.toLocaleString()} />
-            <StatCard index={5} label="Requests this month" value={summary.monthly.requests} />
+            <StatCard index={3} label="Requests today"       value={summary.daily.requests} />
+            <StatCard index={4} label="Tokens today"         value={summary.daily.totalTokens.toLocaleString()} />
+            <StatCard index={5} label="Requests this month"  value={summary.monthly.requests} />
           </>
         ) : null}
       </div>
 
-      <motion.div
-        custom={6}
-        variants={fadeUp}
-        initial="hidden"
-        animate="visible"
-      >
+      <motion.div custom={6} variants={fadeUp} initial="hidden" animate="visible">
         <h2 className="text-sm font-medium text-foreground mb-3">Recent requests</h2>
         <div className="rounded-lg border border-border overflow-hidden">
           {eventsLoading ? (
@@ -184,9 +140,7 @@ export default function DashboardPage() {
               <p className="text-sm text-muted-foreground">No requests yet.</p>
               <p className="text-xs text-muted-foreground mt-1">
                 Send your first prompt from the{' '}
-                <a href="/playground" className="text-primary hover:underline">
-                  Playground
-                </a>
+                <a href="/playground" className="text-primary hover:underline">Playground</a>
               </p>
             </div>
           ) : (
@@ -202,7 +156,7 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-3">
                     <span className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
                     <span className="text-xs font-mono bg-accent text-accent-foreground px-2 py-0.5 rounded">
-                      {event.model}
+                      {getModelLabel(event.model)}
                     </span>
                     <span className="text-xs text-muted-foreground">
                       {event.totalTokens.toLocaleString()} tokens
