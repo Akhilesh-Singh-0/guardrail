@@ -45,7 +45,116 @@ const ModelBadge = ({ model }: { model: string }) => (
   </span>
 )
 
-const BillingCard = ({ snapshot }: { snapshot: BillingSnapshot }) => (
+const renderMarkdown = (text: string) => {
+  const lines = text.split('\n')
+  const elements: React.ReactNode[] = []
+  let i = 0
+
+  while (i < lines.length) {
+    const line = lines[i]
+
+    if (line.startsWith('### ')) {
+      elements.push(
+        <h3 key={i} className="text-sm font-semibold text-foreground mt-4 mb-2">
+          {line.slice(4)}
+        </h3>
+      )
+    } else if (line.startsWith('## ')) {
+      elements.push(
+        <h2 key={i} className="text-base font-semibold text-foreground mt-4 mb-2">
+          {line.slice(3)}
+        </h2>
+      )
+    } else if (line.startsWith('# ')) {
+      elements.push(
+        <h1 key={i} className="text-lg font-semibold text-foreground mt-4 mb-2">
+          {line.slice(2)}
+        </h1>
+      )
+    } else if (line.startsWith('- ') || line.startsWith('* ')) {
+      const items: string[] = []
+      while (i < lines.length && (lines[i].startsWith('- ') || lines[i].startsWith('* '))) {
+        items.push(lines[i].slice(2))
+        i++
+      }
+      elements.push(
+        <ul key={i} className="list-disc pl-5 mb-3 space-y-1">
+          {items.map((item, j) => (
+            <li key={j} className="text-sm text-foreground leading-6">
+              {renderInline(item)}
+            </li>
+          ))}
+        </ul>
+      )
+      continue
+    } else if (/^\d+\. /.test(line)) {
+      const items: string[] = []
+      while (i < lines.length && /^\d+\. /.test(lines[i])) {
+        items.push(lines[i].replace(/^\d+\. /, ''))
+        i++
+      }
+      elements.push(
+        <ol key={i} className="list-decimal pl-5 mb-3 space-y-1">
+          {items.map((item, j) => (
+            <li key={j} className="text-sm text-foreground leading-6">
+              {renderInline(item)}
+            </li>
+          ))}
+        </ol>
+      )
+      continue
+    } else if (line.startsWith('```')) {
+      const codeLines: string[] = []
+      i++
+      while (i < lines.length && !lines[i].startsWith('```')) {
+        codeLines.push(lines[i])
+        i++
+      }
+      elements.push(
+        <pre key={i} className="bg-muted rounded-lg p-4 overflow-x-auto mb-3 border border-border">
+          <code className="text-xs font-mono text-foreground">
+            {codeLines.join('\n')}
+          </code>
+        </pre>
+      )
+    } else if (line.startsWith('---') || line.startsWith('===')) {
+      elements.push(<hr key={i} className="border-border my-4" />)
+    } else if (line.trim() === '') {
+      elements.push(<div key={i} className="h-2" />)
+    } else {
+      elements.push(
+        <p key={i} className="text-sm text-foreground leading-7 mb-2">
+          {renderInline(line)}
+        </p>
+      )
+    }
+    i++
+  }
+
+  return elements
+}
+
+const renderInline = (text: string): React.ReactNode => {
+  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/)
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>
+    }
+    if (part.startsWith('*') && part.endsWith('*')) {
+      return <em key={i} className="italic">{part.slice(1, -1)}</em>
+    }
+    if (part.startsWith('`') && part.endsWith('`')) {
+      return (
+        <code key={i} className="font-mono text-xs bg-accent text-accent-foreground px-1.5 py-0.5 rounded">
+          {part.slice(1, -1)}
+        </code>
+      )
+    }
+    return part
+  })
+}
+
+const BillingCard = ({ snapshot, isFree }: { snapshot: BillingSnapshot; isFree: boolean }) => (
   <motion.div
     initial={{ opacity: 0, y: 8 }}
     animate={{ opacity: 1, y: 0 }}
@@ -68,9 +177,13 @@ const BillingCard = ({ snapshot }: { snapshot: BillingSnapshot }) => (
       <div className="h-px bg-border" />
       <div className="flex items-center justify-between">
         <span className="text-xs text-muted-foreground">Cost</span>
-        <span className="text-xs font-mono font-medium text-foreground">
-          {formatCost(snapshot.costUSD)}
-        </span>
+        {isFree ? (
+          <span className="text-xs font-mono font-medium text-green-400">Free</span>
+        ) : (
+          <span className="text-xs font-mono font-medium text-foreground">
+            {formatCost(snapshot.costUSD)}
+          </span>
+        )}
       </div>
       <div className="flex items-center justify-between">
         <span className="text-xs text-muted-foreground">Request ID</span>
@@ -88,11 +201,24 @@ const BillingCard = ({ snapshot }: { snapshot: BillingSnapshot }) => (
   </motion.div>
 )
 
-const SpendMeter = ({ summary }: { summary: ReturnType<typeof useSummary>['data'] }) => {
+const SpendMeter = ({
+  summary,
+  isFreeModel
+}: {
+  summary: ReturnType<typeof useSummary>['data']
+  isFreeModel: boolean
+}) => {
   if (!summary) return null
   return (
     <div className="rounded-lg border border-border bg-card p-4">
-      <p className="text-xs font-medium text-foreground mb-3">Current spend</p>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs font-medium text-foreground">Current spend</p>
+        {isFreeModel && (
+          <span className="text-[10px] text-green-400 border border-green-400/30 bg-green-400/10 rounded px-1.5 py-0.5">
+            Free tier
+          </span>
+        )}
+      </div>
       <div className="space-y-3">
         {[
           { label: 'Daily',   data: summary.daily },
@@ -119,6 +245,11 @@ const SpendMeter = ({ summary }: { summary: ReturnType<typeof useSummary>['data'
           </div>
         ))}
       </div>
+      {isFreeModel && (
+        <p className="text-[10px] text-muted-foreground mt-3 leading-relaxed">
+          Groq requests are free. Spend meter tracks paid OpenAI usage only.
+        </p>
+      )}
     </div>
   )
 }
@@ -135,6 +266,9 @@ export default function PlaygroundPage() {
   const [billing, setBilling]           = useState<BillingSnapshot | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [history, setHistory]           = useState<BillingSnapshot[]>([])
+
+  const selectedModel = MODELS.find(m => m.value === model)
+  const isFreeModel   = selectedModel?.free ?? false
 
   const handleSend = async () => {
     if (!prompt.trim() || state === 'loading') return
@@ -193,7 +327,6 @@ export default function PlaygroundPage() {
 
         <motion.div custom={1} variants={fadeUp} initial="hidden" animate="visible" className="lg:col-span-3 space-y-4">
           <div className="rounded-lg border border-border bg-card overflow-hidden">
-
             <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-border">
               {MODELS.map(m => (
                 <button
@@ -218,11 +351,18 @@ export default function PlaygroundPage() {
                       <span className="text-[10px] text-muted-foreground border border-border rounded px-1">
                         Soon
                       </span>
+                    ) : m.free ? (
+                      <span className="text-[10px] text-green-400 border border-green-400/30 bg-green-400/10 rounded px-1">
+                        Free
+                      </span>
                     ) : (
                       <span className="text-[10px] text-muted-foreground">{m.description}</span>
                     )}
                   </div>
                   <p className="mt-1 text-xs font-medium text-foreground">{m.label}</p>
+                  {!m.disabled && (
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{m.description}</p>
+                  )}
                 </button>
               ))}
             </div>
@@ -275,8 +415,8 @@ export default function PlaygroundPage() {
                 {billing && <ModelBadge model={billing.model} />}
               </div>
               <div className="px-5 py-5">
-                <div className="max-w-none whitespace-pre-wrap break-words text-[15px] leading-8 text-foreground">
-                  {response}
+                <div className="space-y-1">
+                  {renderMarkdown(response)}
                 </div>
               </div>
             </motion.div>
@@ -312,7 +452,11 @@ export default function PlaygroundPage() {
                       </span>
                     </div>
                     <div className="flex items-center gap-4">
-                      <span className="text-xs font-mono text-foreground">{formatCost(h.costUSD)}</span>
+                      {MODELS.find(m => m.value === h.model)?.free ? (
+                        <span className="text-xs font-mono text-green-400">Free</span>
+                      ) : (
+                        <span className="text-xs font-mono text-foreground">{formatCost(h.costUSD)}</span>
+                      )}
                       <span className="text-xs text-muted-foreground">
                         {formatDistanceToNow(h.timestamp, { addSuffix: true })}
                       </span>
@@ -325,7 +469,7 @@ export default function PlaygroundPage() {
         </motion.div>
 
         <motion.div custom={2} variants={fadeUp} initial="hidden" animate="visible" className="lg:col-span-2 space-y-4">
-          <SpendMeter summary={summary} />
+          <SpendMeter summary={summary} isFreeModel={isFreeModel} />
 
           {state === 'loading' && (
             <div className="rounded-lg border border-border bg-card p-4 space-y-3 animate-pulse">
@@ -341,7 +485,9 @@ export default function PlaygroundPage() {
             </div>
           )}
 
-          {billing && state === 'success' && <BillingCard snapshot={billing} />}
+          {billing && state === 'success' && (
+            <BillingCard snapshot={billing} isFree={isFreeModel} />
+          )}
 
           {!billing && state === 'idle' && (
             <div className="rounded-lg border border-border bg-card p-4">

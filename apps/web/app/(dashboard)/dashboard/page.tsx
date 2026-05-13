@@ -43,7 +43,7 @@ const SpendCard = ({
       </span>
     </div>
     <p className="text-2xl font-mono font-medium text-foreground mb-3">
-      ${parseFloat(spent).toFixed(4)}
+      ${parseFloat(spent).toFixed(6)}
     </p>
     <div className="w-full h-1 bg-border rounded-full overflow-hidden">
       <motion.div
