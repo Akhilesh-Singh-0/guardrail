@@ -5,8 +5,6 @@ import { Logo } from '@/components/logo'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
-// ─── Data ─────────────────────────────────────────────────────────────────────
-
 const features = [
   {
     label: 'Block on limit',
@@ -35,17 +33,17 @@ const stats = [
 ]
 
 const mockEvents = [
-  { model: 'llama-3.1-8b',   tokens: '1,247', cost: '$0.000187', time: '0.3s', status: 'allowed' },
-  { model: 'llama-3.3-70b',  tokens: '3,891', cost: '$0.003891', time: '1.2s', status: 'allowed' },
-  { model: 'mixtral-8x7b',   tokens: '892',   cost: '$0.000134', time: '0.2s', status: 'allowed' },
-  { model: 'llama-3.1-8b',   tokens: '2,103', cost: '$0.000315', time: '0.4s', status: 'blocked' },
-  { model: 'llama-3.3-70b',  tokens: '1,567', cost: '$0.001567', time: '0.9s', status: 'allowed' },
+  { model: 'gpt-4o-mini',   tokens: '1,247', cost: '$0.000187', time: '0.3s', status: 'allowed' },
+  { model: 'llama-3.1-8b',  tokens: '3,891', cost: '$0.000389', time: '0.4s', status: 'allowed' },
+  { model: 'gpt-4o',        tokens: '892',   cost: '$0.008920', time: '1.1s', status: 'allowed' },
+  { model: 'gpt-4o-mini',   tokens: '2,103', cost: '$0.000315', time: '0.3s', status: 'blocked' },
+  { model: 'mixtral-8x7b',  tokens: '1,567', cost: '$0.000234', time: '0.5s', status: 'allowed' },
 ]
 
 const rotatingWords = [
-  'on AI APIs',
   'on OpenAI',
   'on Groq',
+  'on AI APIs',
   'on LLM costs',
   'on token waste',
 ]
@@ -59,15 +57,13 @@ const fadeUp = {
   })
 }
 
-// ─── Rotating word component ──────────────────────────────────────────────────
-
 const RotatingWord = () => {
   const [index, setIndex] = useState(0)
 
   useEffect(() => {
     const interval = setInterval(() => {
       setIndex(prev => (prev + 1) % rotatingWords.length)
-    }, 5000)
+    }, 4000)
     return () => clearInterval(interval)
   }, [])
 
@@ -88,8 +84,6 @@ const RotatingWord = () => {
     </span>
   )
 }
-
-// ─── Live counter ─────────────────────────────────────────────────────────────
 
 const LiveCounter = () => {
   const [spend, setSpend] = useState(3.35)
@@ -116,15 +110,12 @@ const LiveCounter = () => {
   )
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
 export default function Home() {
   return (
     <div className="min-h-screen flex flex-col bg-background relative overflow-hidden font-sans">
       <div className="gradient-orb-1" />
       <div className="gradient-orb-2" />
 
-      {/* Nav */}
       <nav className="relative z-10 flex items-center justify-between px-8 py-4 border-b border-border backdrop-blur-sm bg-background/80 sticky top-0">
         <Logo size="md" />
         <div className="flex items-center gap-1">
@@ -143,7 +134,6 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* Hero */}
       <main className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-8 py-20 gap-6">
 
         <motion.div
@@ -201,7 +191,6 @@ export default function Home() {
           </Link>
         </motion.div>
 
-        {/* Stats */}
         <motion.div
           custom={4}
           variants={fadeUp}
@@ -217,7 +206,6 @@ export default function Home() {
           ))}
         </motion.div>
 
-        {/* Mock dashboard */}
         <motion.div
           custom={5}
           variants={fadeUp}
@@ -228,7 +216,6 @@ export default function Home() {
             boxShadow: '0 25px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06), 0 0 60px rgba(99,102,241,0.08)'
           }}
         >
-          {/* Window chrome */}
           <div className="flex items-center gap-1.5 px-4 py-3 border-b border-border bg-surface-1">
             <span className="w-2.5 h-2.5 rounded-full bg-red-500/70" />
             <span className="w-2.5 h-2.5 rounded-full bg-amber-400/70" />
@@ -242,7 +229,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Events */}
           <div className="divide-y divide-border">
             {mockEvents.map((event, i) => (
               <motion.div
@@ -278,7 +264,6 @@ export default function Home() {
             ))}
           </div>
 
-          {/* Spend bar */}
           <div className="px-4 py-3 border-t border-border bg-surface-1 flex items-center gap-3">
             <span className="text-xs text-muted-foreground whitespace-nowrap">Daily spend</span>
             <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
@@ -297,7 +282,6 @@ export default function Home() {
         </motion.div>
       </main>
 
-      {/* Feature strip */}
       <motion.footer
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -314,7 +298,6 @@ export default function Home() {
             transition={{ duration: 0.2 }}
             className="relative px-8 py-6 sm:border-r border-border last:border-0 border-b sm:border-b-0 cursor-default group"
           >
-            {/* Top accent line on hover */}
             <motion.div
               initial={{ scaleX: 0 }}
               whileHover={{ scaleX: 1 }}
