@@ -298,9 +298,10 @@ export default function PlaygroundPage() {
       setHistory(prev => [snapshot, ...prev].slice(0, 10))
       setState('success')
       setPrompt('')
-    } catch (error: any) {
-      const message = error?.response?.data?.error?.message
-      if (error?.response?.status === 402) {
+    } catch (error: unknown) {
+      const err = error as { response?: { status?: number; data?: { error?: { message?: string } } } }
+      const message = err?.response?.data?.error?.message
+      if (err?.response?.status === 402) {
         setState('blocked')
         setErrorMessage(message ?? 'Spending limit exceeded')
       } else {

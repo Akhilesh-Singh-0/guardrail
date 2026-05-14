@@ -1,15 +1,15 @@
 'use client'
-
+import { ClerkProvider } from '@clerk/nextjs'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { queryClient } from '@/lib/queryClient'
+import { getQueryClient } from '@/lib/queryClient'
 import { useAuth } from '@clerk/nextjs'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { setAuthToken } from '@/lib/api'
 import { Toaster } from 'sonner'
+import type { Appearance } from '@clerk/types'
 
 const AuthSync = ({ children }: { children: React.ReactNode }) => {
   const { getToken } = useAuth()
-
   useEffect(() => {
     const syncToken = async () => {
       const token = await getToken()
@@ -17,17 +17,38 @@ const AuthSync = ({ children }: { children: React.ReactNode }) => {
     }
     syncToken()
   }, [getToken])
-
   return <>{children}</>
 }
 
-export const Providers = ({ children }: { children: React.ReactNode }) => {
+export const Providers = ({ 
+  children,
+  appearance
+}: { 
+  children: React.ReactNode
+  appearance: Appearance
+}) => {
+  const [mounted, setMounted] = useState(false)
+  const [client] = useState(() => getQueryClient())
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthSync>
-        {children}
-        <Toaster position="top-right" richColors />
-      </AuthSync>
-    </QueryClientProvider>
+    <ClerkProvider appearance={appearance}>
+      <QueryClientProvider client={client}>
+        {mounted ? (
+          <AuthSync>
+            {children}
+            <Toaster position="top-right" richColors />
+          </AuthSync>
+        ) : (
+          <>
+            {children}
+            <Toaster position="top-right" richColors />
+          </>
+        )}
+      </QueryClientProvider>
+    </ClerkProvider>
   )
 }

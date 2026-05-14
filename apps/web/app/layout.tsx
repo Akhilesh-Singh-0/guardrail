@@ -1,4 +1,3 @@
-import { ClerkProvider } from '@clerk/nextjs'
 import { clerkAppearance } from '@/lib/clerk-appearance'
 import { Providers } from '@/components/providers'
 import { Geist, Geist_Mono } from 'next/font/google'
@@ -14,14 +13,12 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ClerkProvider appearance={clerkAppearance}>
-      <html lang="en" className="dark">
-        <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-          <Providers>
-            {children}
-          </Providers>
-        </body>
-      </html>
-    </ClerkProvider>
+    <html lang="en" className="dark">
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <Providers appearance={clerkAppearance}>
+          {children}
+        </Providers>
+      </body>
+    </html>
   )
 }
