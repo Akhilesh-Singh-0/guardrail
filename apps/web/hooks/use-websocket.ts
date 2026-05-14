@@ -27,7 +27,9 @@ export const useWebSocket = () => {
     const token = await getToken()
     if (!token) return
 
-    const ws = new WebSocket(`ws://localhost:8000?token=${token}`)
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+    const wsUrl = apiUrl.replace(/^http/, 'ws')
+    const ws = new WebSocket(`${wsUrl}?token=${token}`)
 
     ws.onopen = () => {
       console.log('[WS] Connected')
