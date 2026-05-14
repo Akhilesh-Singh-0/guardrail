@@ -32,6 +32,10 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
 
         const verified = await verifyToken(token, {
             secretKey: env.CLERK_SECRET_KEY,
+            authorizedParties: [
+                'http://localhost:3000',
+                'https://guardrail-web-mu.vercel.app'
+            ]
         })
 
         req.user = {
