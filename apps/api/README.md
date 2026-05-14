@@ -106,6 +106,22 @@ The response returns to the client before the background work starts. The user n
 
 ---
 
+## Performance
+
+Load tested against the live Railway deployment (free tier, shared infrastructure):
+
+| Metric | 50 connections | 100 connections |
+|---|---|---|
+| Throughput | ~134 req/s | ~295 req/s |
+| Latency p50 | 320ms | 636ms |
+| Latency p99 | 1579ms | 832ms |
+| Duration | 10s | 15s |
+| Errors | 0 | 86 |
+
+> Baseline latency reflects Railway free-tier shared infrastructure, not application overhead. The architecture is horizontally scalable — the API and WebSocket servers are stateless and decouple via Redis Pub/Sub, meaning both can scale independently behind a load balancer.
+
+---
+
 ## Key Engineering Decisions
 
 | Decision | Why |
@@ -253,13 +269,13 @@ API runs at `http://localhost:8000`
 Health check at `http://localhost:8000/health`
 
 ---
- 
+
 ## License
- 
+
 MIT — use it, fork it, learn from it.
- 
+
 ---
- 
+
 <div align="center">
   <sub>If this was useful or interesting — a ⭐ goes a long way.</sub>
 </div>
