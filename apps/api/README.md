@@ -21,7 +21,7 @@
 </p>
 
 <p>
-  <a href="../../README.md"><strong>← Root README</strong></a> ·
+  <a href="https://guardrail-production-217e.up.railway.app"><strong>Live Demo</strong></a> ·
   <a href="../web/README.md"><strong>Frontend README</strong></a> ·
   <a href="https://twitter.com/singh_akhil2272"><strong>Building in Public</strong></a>
 </p>

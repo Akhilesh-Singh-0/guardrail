@@ -216,8 +216,8 @@ npm run dev
 
 | | URL |
 |---|---|
-| Frontend | — |
-| Backend | — |
+| Frontend | https://guardrail-web-mu.vercel.app |
+| Backend | https://guardrail-production-217e.up.railway.app |
 
 ---
 
