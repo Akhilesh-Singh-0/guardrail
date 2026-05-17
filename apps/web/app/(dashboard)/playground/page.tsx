@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from '@clerk/nextjs'
+import { useQueryClient } from '@tanstack/react-query'
 import { useSummary } from '@/hooks/use-summary'
 import { useWebSocket } from '@/hooks/use-websocket'
 import { formatDistanceToNow } from 'date-fns'
@@ -269,6 +270,7 @@ export default function PlaygroundPage() {
 
   const selectedModel = MODELS.find(m => m.value === model)
   const isFreeModel   = selectedModel?.free ?? false
+  const queryClient   = useQueryClient()
 
   const handleSend = async () => {
     if (!prompt.trim() || state === 'loading') return
@@ -298,6 +300,9 @@ export default function PlaygroundPage() {
       setHistory(prev => [snapshot, ...prev].slice(0, 10))
       setState('success')
       setPrompt('')
+      queryClient.invalidateQueries({ queryKey: ['summary'] })
+      queryClient.invalidateQueries({ queryKey: ['limits'] })
+      queryClient.invalidateQueries({ queryKey: ['events'] })
     } catch (error: unknown) {
       const err = error as { response?: { status?: number; data?: { error?: { message?: string } } } }
       const message = err?.response?.data?.error?.message
